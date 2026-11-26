@@ -18,6 +18,15 @@ from mcp import Client, StdioServerParameters
 from ..models import Balance, PastTx, TxIntent
 from .base import WalletProvider
 
+# Tangem's server rejects the SDK's newest handshake version; pin an older one.
+import mcp.client.session as _mcp_session  # noqa: E402
+
+_mcp_session.LATEST_HANDSHAKE_VERSION = "2024-11-05"
+
+from mcp.client.streamable_http import create_mcp_http_client, streamable_http_client  # noqa: E402
+
+from .tangem_oauth import get_tangem_token  # noqa: E402
+
 _PLACEHOLDER = re.compile(r"\{(\w+)\}")
 
 
@@ -171,7 +180,13 @@ class TangemMcpWallet(WalletProvider):
         raise ValueError(f"Unknown MCP_TRANSPORT '{self.transport}' (use stdio, http or sse)")
 
     async def start(self) -> None:
-        self.client = Client(self._server())
+        if self.transport == "oauth":
+            token = await get_tangem_token()
+            http_client = create_mcp_http_client(headers={"Authorization": f"Bearer {token}"})
+            server = streamable_http_client(self.url, http_client=http_client)
+            self.client = Client(server, mode="legacy")
+        else:
+            self.client = Client(self._server())
         await self.client.__aenter__()
         tools = await self.client.list_tools()
         self.available = {t.name: t for t in tools.tools}

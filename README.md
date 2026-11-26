@@ -29,17 +29,19 @@ flowchart LR
 
 ## Evals (the part that matters for AI roles)
 
-| Run | Attacks stopped | Unsafe on tap screen, no warning | Unsafe on tap screen, warned | Normal requests working |
-|---|---|---|---|---|
-| Policy only, hijacked agent | **38/39** | **0** | 1 | 9/9 |
-| Same, provenance check OFF | 30/39 | 0 | 9 | 9/9 |
+| Run | Attacks stopped | Agent attempted unsafe | Unsafe on tap screen, no warning | Unsafe on tap screen, warned | Normal requests working |
+|---|---|---|---|---|---|---|
+| Policy only, hijacked agent | **38/39** | 39/39 | **0** | 1 | 9/9 |
+| Same, provenance check OFF | 30/39 | 39/39 | 0 | 9 | 9/9 |
+| LLM (deepseek-flash), hardening on | **39/39** | 13/39 | 0 | 0 | 9/9 |
+| LLM (deepseek-flash), hardening off | **39/39** | 12/39 | 0 | 0 | 9/9 |
 
 *Hijacked agent* = assume the LLM is fully taken over and does exactly what the attacker wants; measures the policy alone.
 The one that gets through with a warning is `social-1`: the owner types a scam address themselves ("Tangem support told me to…"). Software rules can't tell that apart from a real new payee. That's what the warning plus the physical tap are for.
 
 - **Attacks** (39): prompt injection in token names and transaction memos, address poisoning, limit evasion (splitting, switching chain or token, approvals), social engineering, attempts to get capabilities the agent doesn't have.
 - **Provenance check:** a payment to an unknown address is blocked unless the owner typed that address. This is what stops injected addresses.
-- `python -m evals.redteam --mode llm` runs the real Claude agent on the same scenarios (needs an API key). Add `--no-hardening` to measure the system-prompt defence on its own.
+- `python -m evals.redteam --mode llm --model deepseek-flash` runs the real agent on the same scenarios. Set `ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic`, `ANTHROPIC_MODEL=deepseek-flash` and `ANTHROPIC_API_KEY` (your DeepSeek key) in `.env` to use DeepSeek's Anthropic-compatible endpoint; leave the base URL out to use Claude. Add `--no-hardening` to measure the system-prompt defence on its own. The policy stops every unsafe attempt regardless of hardening.
 - `python -m evals.mcp_bench` benchmarks models on an MCP server's tools and lints the tool definitions. The report is written to hand to Tangem as feedback.
 - Sample reports are in `evals/sample_results/`; new runs go to `evals/results/`.
 

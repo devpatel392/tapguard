@@ -128,6 +128,17 @@ def test_capped_approval_needs_review():
     asyncio.run(main())
 
 
+def test_split_approvals_to_one_spender_hit_per_recipient_limit():
+    async def main():
+        svc = make()
+        first = await svc.propose(kind=IntentKind.APPROVE, to="bob", amount=90, token="USDC")
+        assert first.decision.verdict == Verdict.REVIEW  # a single capped approval still warns
+        second = await svc.propose(kind=IntentKind.APPROVE, to="bob", amount=90, token="USDC")
+        assert second.decision.verdict == Verdict.BLOCK
+        assert any("per-recipient" in r for r in second.decision.reasons)
+    asyncio.run(main())
+
+
 def test_disallowed_chain_and_blocklist():
     async def main():
         svc = make()

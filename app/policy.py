@@ -80,20 +80,21 @@ class PolicyEngine:
             what = "payment" if intent.kind == IntentKind.TRANSFER else "approval"
             if usd > p.per_tx_limit_usd:
                 blocks.append(f"${usd:,.2f} is over your ${p.per_tx_limit_usd:,.2f} per-{what} limit.")
-            if intent.kind == IntentKind.TRANSFER:
-                # Pending payments count too, so the agent can't queue ten small ones to dodge the cap.
-                if spent_today_usd + usd > p.daily_limit_usd:
-                    blocks.append(
-                        f"This would take today's total to ${spent_today_usd + usd:,.2f}, "
-                        f"over your ${p.daily_limit_usd:,.2f} daily limit."
-                    )
-                if spent_to_recipient_usd + usd > p.per_recipient_daily_limit_usd:
-                    blocks.append(
-                        f"You'd be sending ${spent_to_recipient_usd + usd:,.2f} to this address today, over your "
-                        f"${p.per_recipient_daily_limit_usd:,.2f} per-recipient daily limit."
-                    )
-                if usd > p.review_above_usd:
-                    reviews.append(f"${usd:,.2f} is above your ${p.review_above_usd:,.2f} review threshold.")
+            # Pending payments AND token allowances count, so the agent can't queue ten small ones
+            # (or split one big allowance into sub-limit approvals) to dodge the caps.
+            if spent_today_usd + usd > p.daily_limit_usd:
+                blocks.append(
+                    f"This would take today's total to ${spent_today_usd + usd:,.2f}, "
+                    f"over your ${p.daily_limit_usd:,.2f} daily limit."
+                )
+            if spent_to_recipient_usd + usd > p.per_recipient_daily_limit_usd:
+                action = "sending" if intent.kind == IntentKind.TRANSFER else "allowing"
+                blocks.append(
+                    f"You'd be {action} ${spent_to_recipient_usd + usd:,.2f} to this address today, over your "
+                    f"${p.per_recipient_daily_limit_usd:,.2f} per-recipient daily limit."
+                )
+            if intent.kind == IntentKind.TRANSFER and usd > p.review_above_usd:
+                reviews.append(f"${usd:,.2f} is above your ${p.review_above_usd:,.2f} review threshold.")
 
         # 4. Risk flags from risk.py
         for f in flags:

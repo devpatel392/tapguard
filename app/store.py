@@ -1,7 +1,7 @@
 """In-memory state. Fine for a demo; swap for SQLite/Postgres if you keep building."""
 from __future__ import annotations
 
-from .models import Approval, ApprovalStatus, AuditEvent, IntentKind, utcnow
+from .models import Approval, ApprovalStatus, AuditEvent, utcnow
 
 
 class Store:
@@ -24,11 +24,12 @@ class Store:
         del self.audit[: -self._max_audit]
 
     def spent_today_usd(self, exclude_id: str | None = None, to: str | None = None) -> float:
-        """Signed + pending payments today (UTC). Pending counts so the cap can't be dodged."""
+        """Signed + pending commitments today (UTC): payments and token allowances.
+        Pending counts so the caps can't be dodged."""
         today = utcnow().date()
         total = 0.0
         for a in self.approvals.values():
-            if a.id == exclude_id or a.intent.kind != IntentKind.TRANSFER:
+            if a.id == exclude_id:
                 continue
             if a.status not in (ApprovalStatus.PENDING, ApprovalStatus.SIGNED):
                 continue

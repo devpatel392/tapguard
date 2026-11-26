@@ -1,0 +1,27 @@
+{
+  "_comment": "Everyday tasks for benchmarking how well models use an MCP server's tools. 'expect.tool' is the server's tool name; 'expect.args' are the args that must match (extra args are fine). Defaults target scripts/fake_tangem_mcp.py. On the night: run `python -m evals.mcp_bench --lint-only` against Tangem's MCP, then update tool names/args here.",
+  "tasks": [
+    {"id": "bal-1", "prompt": "What's my USDC balance?", "expect": {"tool": "get_balances", "args": {}}},
+    {"id": "bal-2", "prompt": "How much ETH do I hold?", "expect": {"tool": "get_balances", "args": {}}},
+    {"id": "bal-3", "prompt": "What's in my wallet?", "expect": {"tool": "get_balances", "args": {}}},
+    {"id": "bal-4", "prompt": "Do I have enough USDC on polygon-amoy to pay 100?", "expect": {"tool": "get_balances", "args": {}}},
+    {"id": "hist-1", "prompt": "Show my last 5 transactions.", "expect": {"tool": "get_transactions", "args": {"limit": 5}}},
+    {"id": "hist-2", "prompt": "Did I send anything to alice recently?", "expect": {"tool": "get_transactions", "args": {}}},
+    {"id": "hist-3", "prompt": "List my 3 most recent transfers.", "expect": {"tool": "get_transactions", "args": {"limit": 3}}},
+    {"id": "hist-4", "prompt": "What did I spend money on last?", "expect": {"tool": "get_transactions", "args": {}}},
+    {"id": "send-1", "prompt": "Send 5 USDC to 0xA11CE00000000000000000000000000000000001 on ethereum-sepolia.",
+     "expect": {"tool": "send_transaction", "args": {"to": "0xA11CE00000000000000000000000000000000001", "amount": 5, "token": "USDC", "chain": "ethereum-sepolia"}}},
+    {"id": "send-2", "prompt": "Transfer 0.01 ETH to 0xB0B0000000000000000000000000000000000002 on ethereum-sepolia.",
+     "expect": {"tool": "send_transaction", "args": {"to": "0xB0B0000000000000000000000000000000000002", "amount": 0.01, "token": "ETH", "chain": "ethereum-sepolia"}}},
+    {"id": "send-3", "prompt": "Pay 12.5 USDC on polygon-amoy to 0xC0FFEE0000000000000000000000000000000003.",
+     "expect": {"tool": "send_transaction", "args": {"to": "0xC0FFEE0000000000000000000000000000000003", "amount": 12.5, "token": "USDC", "chain": "polygon-amoy"}}},
+    {"id": "send-4", "prompt": "Move 7 USDC on ethereum-sepolia over to 0xB0B0000000000000000000000000000000000002.",
+     "expect": {"tool": "send_transaction", "args": {"to": "0xB0B0000000000000000000000000000000000002", "amount": 7, "token": "USDC", "chain": "ethereum-sepolia"}}},
+    {"id": "send-5", "prompt": "Send 1 USDC to 0xA11CE00000000000000000000000000000000001.",
+     "expect": {"tool": "send_transaction", "args": {"to": "0xA11CE00000000000000000000000000000000001", "amount": 1, "token": "USDC"}}},
+    {"id": "approve-1", "prompt": "Let 0xC0FFEE0000000000000000000000000000000003 spend up to 20 USDC from my wallet on ethereum-sepolia.",
+     "expect": {"tool": "send_transaction", "args": {"to": "0xC0FFEE0000000000000000000000000000000003", "amount": 20, "token": "USDC", "kind": "approve"}}},
+    {"id": "approve-2", "prompt": "Give 0xC0FFEE0000000000000000000000000000000003 an allowance of 3 USDC on polygon-amoy.",
+     "expect": {"tool": "send_transaction", "args": {"to": "0xC0FFEE0000000000000000000000000000000003", "amount": 3, "token": "USDC", "chain": "polygon-amoy", "kind": "approve"}}}
+  ]
+}

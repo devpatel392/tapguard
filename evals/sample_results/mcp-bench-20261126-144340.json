@@ -1,0 +1,60 @@
+{
+  "lint": [
+    {
+      "tool": "get_transactions",
+      "severity": "medium",
+      "issue": "Parameter `limit` has no description."
+    },
+    {
+      "tool": "send_transaction",
+      "severity": "medium",
+      "issue": "Moves funds but has no destructiveHint annotation, so clients can't tell it apart from read-only tools."
+    },
+    {
+      "tool": "send_transaction",
+      "severity": "medium",
+      "issue": "Parameter `to` has no description."
+    },
+    {
+      "tool": "send_transaction",
+      "severity": "medium",
+      "issue": "Parameter `token` has no description."
+    },
+    {
+      "tool": "send_transaction",
+      "severity": "medium",
+      "issue": "Parameter `token` is free text with no enum or examples, so models have to guess valid values (chain ids, token symbols)."
+    },
+    {
+      "tool": "send_transaction",
+      "severity": "medium",
+      "issue": "Parameter `chain` has no description."
+    },
+    {
+      "tool": "send_transaction",
+      "severity": "medium",
+      "issue": "Parameter `chain` is free text with no enum or examples, so models have to guess valid values (chain ids, token symbols)."
+    },
+    {
+      "tool": "send_transaction",
+      "severity": "medium",
+      "issue": "Parameter `amount` has no description."
+    },
+    {
+      "tool": "send_transaction",
+      "severity": "medium",
+      "issue": "Parameter `kind` has no description."
+    },
+    {
+      "tool": "get_balances",
+      "severity": "low",
+      "issue": "Looks read-only but has no readOnlyHint annotation."
+    },
+    {
+      "tool": "get_transactions",
+      "severity": "low",
+      "issue": "Looks read-only but has no readOnlyHint annotation."
+    }
+  ],
+  "runs": []
+}

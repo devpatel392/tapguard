@@ -1,0 +1,21 @@
+{
+  "_comment": "Maps TapGuard's 3 wallet operations to MCP tool names + arguments. Defaults match scripts/fake_tangem_mcp.py. On the night: run scripts/inspect_mcp.py against Tangem's MCP and edit the tool names/args here. Placeholders: {to} {amount} {token} {chain} {kind} {memo} {limit}. A placeholder on its own keeps its type (numbers stay numbers); null values are dropped.",
+  "get_balances": {
+    "tool": "get_balances",
+    "args": {}
+  },
+  "get_history": {
+    "tool": "get_transactions",
+    "args": {"limit": "{limit}"}
+  },
+  "sign_and_send": {
+    "tool": "send_transaction",
+    "args": {
+      "to": "{to}",
+      "amount": "{amount}",
+      "token": "{token}",
+      "chain": "{chain}",
+      "kind": "{kind}"
+    }
+  }
+}

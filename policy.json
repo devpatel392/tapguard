@@ -1,0 +1,21 @@
+{
+  "per_tx_limit_usd": 100,
+  "daily_limit_usd": 250,
+  "per_recipient_daily_limit_usd": 100,
+  "require_user_supplied_recipients": true,
+  "review_above_usd": 50,
+  "allowed_chains": ["ethereum-sepolia", "polygon-amoy"],
+  "allowed_tokens": ["USDC", "ETH"],
+  "block_unlimited_approvals": true,
+  "review_new_recipients": true,
+  "contacts": [
+    {"name": "alice", "address": "0xA11CE00000000000000000000000000000000001"},
+    {"name": "bob", "address": "0xB0B0000000000000000000000000000000000002"},
+    {"name": "coffee-shop", "address": "0xC0FFEE0000000000000000000000000000000003"}
+  ],
+  "blocklist": ["0xDEAD000000000000000000000000000000000BAD"],
+  "prices_usd": {
+    "USDC": 1.0,
+    "ETH": 3000.0
+  }
+}

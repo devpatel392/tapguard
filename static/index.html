@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TapGuard</title>
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    --bg: #0b0b0d; --card: #151518; --card-2: #1c1c20; --line: #2a2a30;
+    --text: #f2f2f4; --muted: #9a9aa3; --white: #ffffff;
+    --ok: #3ddc97; --warn: #f5b942; --bad: #ff5c5c; --radius: 16px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif; }
+  header { display: flex; align-items: center; gap: 10px; padding: 14px 20px; border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 17px; margin: 0; letter-spacing: .2px; }
+  header .tag { font-size: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  @media (max-width: 600px) { header .tagline { display: none; } }
+  header .spacer { flex: 1; }
+  main { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; padding: 16px 20px 40px; max-width: 1200px; margin: 0 auto; }
+  main > * { min-width: 0; }
+  @media (max-width: 860px) { main { grid-template-columns: 1fr; padding: 12px; } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
+  aside { display: flex; flex-direction: column; gap: 16px; }
+  h2 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin: 0 0 12px; }
+  .empty { color: var(--muted); font-size: 14px; }
+
+  /* chat */
+  .chat { display: flex; flex-direction: column; position: sticky; top: 16px; align-self: start; height: calc(100vh - 90px); }
+  #messages { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-bottom: 8px; }
+  @media (max-width: 860px) { .chat { position: static; height: auto; } #messages { flex: none; min-height: 160px; max-height: 50vh; } }
+  .msg { max-width: 85%; padding: 10px 14px; border-radius: 14px; white-space: pre-wrap; word-break: break-word; }
+  .msg.user { align-self: flex-end; background: var(--white); color: #000; border-bottom-right-radius: 4px; }
+  .msg.agent { align-self: flex-start; background: var(--card-2); border-bottom-left-radius: 4px; }
+  .msg.error { align-self: flex-start; background: #2a1416; color: #ffb3b3; }
+  .events { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .event { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; background: #0f0f12; border: 1px solid var(--line); border-radius: 8px; padding: 2px 8px; color: var(--muted); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+  .chip { background: transparent; color: var(--text); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
+  .chip:hover { border-color: var(--muted); }
+  form.send { display: flex; gap: 8px; }
+  form.send input { flex: 1; }
+  input[type=text], input[type=number] { background: var(--card-2); color: var(--text); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; font-size: 15px; min-width: 0; }
+  button { font: inherit; cursor: pointer; }
+  .primary { background: var(--white); color: #000; border: 0; border-radius: 12px; padding: 0 18px; font-weight: 600; }
+  .primary:disabled { opacity: .5; cursor: default; }
+
+  /* pending taps */
+  .tx { background: var(--card-2); border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 12px; }
+  .tx.review { border-color: rgba(245,185,66,.5); }
+  .tx-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .badge { font-size: 11px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; }
+  .badge.allow, .badge.signed { background: rgba(61,220,151,.15); color: var(--ok); }
+  .badge.review { background: rgba(245,185,66,.15); color: var(--warn); }
+  .badge.block, .badge.blocked, .badge.failed { background: rgba(255,92,92,.15); color: var(--bad); }
+  .badge.rejected { background: #26262c; color: var(--muted); }
+  .usd { color: var(--muted); font-size: 13px; }
+  .explain { margin: 0 0 6px; font-weight: 500; }
+  .addr { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); word-break: break-all; margin-bottom: 10px; }
+  ul.reasons { margin: 0 0 10px; padding-left: 18px; font-size: 14px; }
+  ul.reasons li { margin: 3px 0; }
+  .review ul.reasons { color: #f7d38a; }
+  .blocked ul.reasons, .block ul.reasons { color: #ffb3b3; }
+  .ack { display: flex; gap: 8px; align-items: center; font-size: 14px; margin-bottom: 10px; cursor: pointer; }
+  .actions { display: flex; gap: 8px; }
+  .tap { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--white); color: #000; border: 0; border-radius: 12px; padding: 12px; font-weight: 700; }
+  .tap:disabled { opacity: .4; cursor: default; }
+  .tap.busy { animation: pulse 1.1s ease-in-out infinite; opacity: 1; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 6px rgba(255,255,255,.15); } }
+  .ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; }
+
+  /* limits, balances, history */
+  .bar { height: 8px; background: var(--card-2); border-radius: 999px; overflow: hidden; margin: 6px 0 4px; }
+  .bar > div { height: 100%; background: var(--ok); transition: width .3s; }
+  .bar.hot > div { background: var(--warn); }
+  .row { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .row:last-child { border-bottom: 0; }
+  .muted { color: var(--muted); }
+  .limits { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+  .limits label { font-size: 12px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+  .limits input { width: 100%; padding: 8px 10px; font-size: 14px; }
+  .limits button { grid-column: 1 / -1; padding: 10px; }
+  .hist { padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .hist:last-child { border-bottom: 0; }
+  .hist .top { display: flex; gap: 8px; align-items: center; margin-bottom: 4px; }
+  #audit { list-style: none; margin: 0; padding: 0; font-size: 13px; color: var(--muted); max-height: 220px; overflow-y: auto; }
+  #audit li { padding: 4px 0; border-bottom: 1px solid var(--line); }
+  #audit time { color: #6d6d75; margin-right: 6px; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<header>
+  <h1>TapGuard</h1>
+  <span class="tag tagline">agent proposes · policy checks · you tap</span>
+  <span class="spacer"></span>
+  <span class="tag" id="mode">…</span>
+</header>
+
+<main>
+  <section class="card chat">
+    <h2>Agent</h2>
+    <div id="messages">
+      <div class="msg agent">Hi. Ask me to pay someone. I can only propose; your policy decides, and nothing is signed until you tap your card.</div>
+    </div>
+    <div class="chips" id="chips">
+      <button class="chip" data-msg="Pay alice 20 USDC">Pay alice 20</button>
+      <button class="chip" data-msg="Send 40 USDC to 0x5EED123412341234123412341234123412341234">New address</button>
+      <button class="chip" data-msg="Send 30 USDC to 0xA11CE77777777777777777777777777777770001">Lookalike address</button>
+      <button class="chip" data-msg="Approve unlimited USDC for coffee-shop">Unlimited approval</button>
+      <button class="chip" data-msg="Pay bob 150 USDC">Over limit</button>
+    </div>
+    <form class="send" id="chat-form" autocomplete="off">
+      <input type="text" id="msg" placeholder="e.g. pay bob 25 usdc for lunch" maxlength="2000">
+      <button class="primary" id="send-btn">Send</button>
+    </form>
+  </section>
+
+  <aside>
+    <section class="card">
+      <h2>Waiting for your tap</h2>
+      <div id="pending"><p class="empty">Nothing waiting.</p></div>
+    </section>
+
+    <section class="card">
+      <h2>Today's spending</h2>
+      <div class="row" style="border:0;padding:0"><span id="spent">$0</span><span class="muted" id="cap">of $0</span></div>
+      <div class="bar" id="bar"><div style="width:0%"></div></div>
+      <form class="limits" id="limits-form">
+        <label>Per payment $<input type="number" min="0" step="1" id="per_tx_limit_usd"></label>
+        <label>Daily $<input type="number" min="0" step="1" id="daily_limit_usd"></label>
+        <label>Review above $<input type="number" min="0" step="1" id="review_above_usd"></label>
+        <button class="ghost" type="submit">Update limits</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Balances</h2>
+      <div id="balances"></div>
+    </section>
+
+    <section class="card">
+      <h2>History</h2>
+      <div id="history"><p class="empty">No requests yet.</p></div>
+    </section>
+
+    <section class="card">
+      <h2>Activity</h2>
+      <ul id="audit"></ul>
+    </section>
+  </aside>
+</main>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const money = (n) => n == null ? "" : "$" + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const shortAddr = (a) => a && a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : (a || "");
+const NFC = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 8.5a6 6 0 0 1 0 7"/><path d="M9.5 6a10 10 0 0 1 0 12"/><path d="M13 3.5a14 14 0 0 1 0 17"/></svg>';
+
+const acked = new Set();   // review items the user has acknowledged (survives re-render)
+const busy = new Set();    // items currently waiting for a tap
+let limitsTouched = false;
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, { headers: { "Content-Type": "application/json" }, ...opts });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || res.statusText);
+  return data;
+}
+
+// ---------- chat ----------
+function addMsg(kind, text, events = []) {
+  const div = document.createElement("div");
+  div.className = `msg ${kind}`;
+  div.textContent = text;
+  if (events.length) {
+    const ev = document.createElement("div");
+    ev.className = "events";
+    ev.innerHTML = events.map((e) => {
+      const verdict = e.output && e.output.verdict ? ` → ${e.output.verdict.toUpperCase()}` : "";
+      return `<span class="event">${esc(e.tool)}${esc(verdict)}</span>`;
+    }).join("");
+    div.appendChild(ev);
+  }
+  $("#messages").appendChild(div);
+  $("#messages").scrollTop = $("#messages").scrollHeight;
+}
+
+async function send(text) {
+  if (!text.trim()) return;
+  addMsg("user", text);
+  $("#msg").value = "";
+  $("#send-btn").disabled = true;
+  try {
+    const out = await api("/api/chat", { method: "POST", body: JSON.stringify({ message: text }) });
+    addMsg("agent", out.reply, out.events || []);
+  } catch (e) {
+    addMsg("error", e.message);
+  } finally {
+    $("#send-btn").disabled = false;
+    $("#msg").focus();
+    refresh();
+  }
+}
+
+$("#chat-form").addEventListener("submit", (e) => { e.preventDefault(); send($("#msg").value); });
+$("#chips").addEventListener("click", (e) => { const b = e.target.closest(".chip"); if (b) send(b.dataset.msg); });
+
+// ---------- approvals ----------
+function reasonsList(a) {
+  const items = a.decision.reasons || [];
+  return items.length ? `<ul class="reasons">${items.map((r) => `<li>${esc(r)}</li>`).join("")}</ul>` : "";
+}
+
+function pendingCard(a) {
+  const v = a.decision.verdict;
+  const review = v === "review";
+  const isBusy = busy.has(a.id);
+  const canTap = !isBusy && (!review || acked.has(a.id));
+  return `<div class="tx ${v}" data-id="${esc(a.id)}">
+    <div class="tx-top"><span class="badge ${v}">${review ? "check first" : "ready"}</span><span class="usd">${money(a.decision.usd_value)}</span></div>
+    <p class="explain">${esc(a.explanation)}</p>
+    <div class="addr">${esc(a.intent.to)}</div>
+    ${review ? reasonsList(a) + `<label class="ack"><input type="checkbox" class="ack-box" ${acked.has(a.id) ? "checked" : ""} ${isBusy ? "disabled" : ""}> I've read these warnings</label>` : ""}
+    <div class="actions">
+      <button class="tap ${isBusy ? "busy" : ""}" data-action="approve" ${canTap ? "" : "disabled"}>${NFC}${isBusy ? "Hold your card to the phone…" : "Tap card to sign"}</button>
+      <button class="ghost" data-action="reject" ${isBusy ? "disabled" : ""}>Reject</button>
+    </div>
+  </div>`;
+}
+
+function historyItem(a) {
+  const ref = a.tx_ref ? `<div class="addr">tx ${esc(shortAddr(a.tx_ref))}</div>` : "";
+  const err = a.error ? `<div class="addr" style="color:var(--bad)">${esc(a.error)}</div>` : "";
+  const why = a.status === "blocked" ? reasonsList(a) : "";
+  return `<div class="hist ${a.status}">
+    <div class="top"><span class="badge ${a.status}">${esc(a.status)}</span><span class="usd">${money(a.decision.usd_value)}</span></div>
+    <div>${esc(a.explanation)}</div>${why}${ref}${err}
+  </div>`;
+}
+
+$("#pending").addEventListener("change", (e) => {
+  if (!e.target.classList.contains("ack-box")) return;
+  const id = e.target.closest(".tx").dataset.id;
+  e.target.checked ? acked.add(id) : acked.delete(id);
+  refresh();
+});
+
+$("#pending").addEventListener("click", async (e) => {
+  const btn = e.target.closest("button[data-action]");
+  if (!btn) return;
+  const id = btn.closest(".tx").dataset.id;
+  try {
+    if (btn.dataset.action === "approve") {
+      busy.add(id); render(lastState);
+      const out = await api(`/api/approvals/${id}/approve`, { method: "POST", body: JSON.stringify({ acknowledge_warnings: acked.has(id) }) });
+      if (out.status === "signed") addMsg("agent", `Signed after your tap. ${out.explanation}`);
+      else if (out.status === "blocked") addMsg("error", `Blocked at signing time: ${out.decision.reasons.join(" ")}`);
+      else if (out.status === "failed") addMsg("error", `Signing failed: ${out.error}`);
+    } else {
+      await api(`/api/approvals/${id}/reject`, { method: "POST" });
+    }
+  } catch (err) {
+    addMsg("error", err.message);
+  } finally {
+    busy.delete(id); acked.delete(id);
+    refresh();
+  }
+});
+
+// ---------- limits ----------
+["per_tx_limit_usd", "daily_limit_usd", "review_above_usd"].forEach((k) => $("#" + k).addEventListener("input", () => { limitsTouched = true; }));
+$("#limits-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const body = {};
+  ["per_tx_limit_usd", "daily_limit_usd", "review_above_usd"].forEach((k) => { const v = $("#" + k).value; if (v !== "") body[k] = Number(v); });
+  try { await api("/api/policy", { method: "PATCH", body: JSON.stringify(body) }); limitsTouched = false; refresh(); }
+  catch (err) { addMsg("error", err.message); }
+});
+
+// ---------- render ----------
+let lastState = null;
+function render(s) {
+  if (!s) return;
+  lastState = s;
+  $("#mode").textContent = `wallet: ${s.wallet} · agent: ${s.agent}`;
+
+  const pending = s.approvals.filter((a) => a.status === "pending");
+  $("#pending").innerHTML = pending.length ? pending.map(pendingCard).join("") : '<p class="empty">Nothing waiting.</p>';
+
+  const done = s.approvals.filter((a) => a.status !== "pending");
+  $("#history").innerHTML = done.length ? done.map(historyItem).join("") : '<p class="empty">No requests yet.</p>';
+
+  $("#balances").innerHTML = s.balances.map((b) =>
+    `<div class="row"><span>${esc(b.amount)} ${esc(b.token)} <span class="muted">· ${esc(b.chain)}</span></span><span class="muted">${money(b.usd)}</span></div>`
+  ).join("") || '<p class="empty">No balances.</p>';
+
+  const L = s.limits;
+  const pct = L.daily_limit_usd ? Math.min(100, (L.spent_today_usd / L.daily_limit_usd) * 100) : 0;
+  $("#spent").textContent = `${money(L.spent_today_usd)} used (incl. pending)`;
+  $("#cap").textContent = `of ${money(L.daily_limit_usd)}`;
+  $("#bar").firstElementChild.style.width = pct + "%";
+  $("#bar").classList.toggle("hot", pct >= 80);
+  if (!limitsTouched) ["per_tx_limit_usd", "daily_limit_usd", "review_above_usd"].forEach((k) => { $("#" + k).value = L[k]; });
+
+  $("#audit").innerHTML = s.audit.map((e) =>
+    `<li><time>${new Date(e.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</time>${esc(e.message)}</li>`
+  ).join("");
+}
+
+async function refresh() {
+  try { render(await api("/api/state")); } catch (e) { $("#mode").textContent = "server unreachable"; }
+}
+refresh();
+setInterval(() => { if (!busy.size) refresh(); }, 4000);
+</script>
+</body>
+</html>

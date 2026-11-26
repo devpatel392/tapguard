@@ -103,7 +103,10 @@ class TapGuardService:
                 return a
 
             a.status, a.tx_ref, a.resolved_at = ApprovalStatus.SIGNED, ref, utcnow()
-            self.store.log("signed", f"Signed after tap ({short(ref)}): {a.explanation}")
+            if ref and ref.startswith("http"):
+                self.store.log("signed", f"Tap ready — open this link in the Tangem app: {ref}")
+            else:
+                self.store.log("signed", f"Signed after tap ({short(ref)}): {a.explanation}")
             return a
 
     def reject(self, approval_id: str) -> Approval:

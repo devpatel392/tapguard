@@ -145,6 +145,7 @@ class TangemMcpWallet(WalletProvider):
         }
         self.client: Client | None = None
         self.available: dict[str, Any] = {}  # tool name -> Tool
+        self._last_intent_id: str | None = None
 
     @classmethod
     def from_settings(cls, settings) -> "TangemMcpWallet":
@@ -190,10 +191,11 @@ class TangemMcpWallet(WalletProvider):
         await self.client.__aenter__()
         tools = await self.client.list_tools()
         self.available = {t.name: t for t in tools.tools}
-        missing = [spec["tool"] for spec in self.tool_map.values() if spec["tool"] not in self.available]
-        if missing:
-            print(f"[tapguard] WARNING: mapped MCP tools not found on server: {missing}. "
-                  f"Server has: {sorted(self.available)}. Edit mcp_tools.json.", file=sys.stderr)
+        if self.transport != "oauth":
+            missing = [spec["tool"] for spec in self.tool_map.values() if spec["tool"] not in self.available]
+            if missing:
+                print(f"[tapguard] WARNING: mapped MCP tools not found on server: {missing}. "
+                      f"Server has: {sorted(self.available)}. Edit mcp_tools.json.", file=sys.stderr)
 
     async def stop(self) -> None:
         if self.client:
@@ -210,16 +212,112 @@ class TangemMcpWallet(WalletProvider):
             raise RuntimeError(f"MCP tool {spec['tool']} failed: {_payload(result)}")
         return _payload(result)
 
+    async def _call_tool(self, name: str, args: dict[str, Any]) -> Any:
+        """Call a Tangem MCP tool directly (bypasses the generic tool_map)."""
+        if self.client is None:
+            raise RuntimeError("MCP client not started")
+        result = await self.client.call_tool(name, args)
+        if getattr(result, "is_error", False) or getattr(result, "isError", False):
+            raise RuntimeError(f"MCP tool {name} failed: {_payload(result)}")
+        return _payload(result)
+
+    async def _tokens(self) -> list[dict]:
+        data = await self._call_tool("wallets__get_tokens", {})
+        return data.get("tokens", []) if isinstance(data, dict) else []
+
+    @staticmethod
+    def _network_id(chain: str) -> str:
+        """Map TapGuard's chain name to Tangem's networkId."""
+        return {
+            "ethereum-sepolia": "ethereum",
+            "ethereum": "ethereum",
+            "polygon-amoy": "polygon-pos",
+            "polygon-pos": "polygon-pos",
+            "bitcoin": "bitcoin",
+        }.get(chain.lower(), chain.lower())
+
     async def get_balances(self) -> list[Balance]:
+        if self.transport == "oauth":
+            return await self._tangem_balances()
         return _normalise_balances(await self._call("get_balances"))
 
+    async def _tangem_balances(self) -> list[Balance]:
+        out: list[Balance] = []
+        for t in await self._tokens():
+            network = t.get("networkId")
+            symbol = str(t.get("symbol") or t.get("name") or "?").upper()
+            decimals = int(t.get("decimals") or 0)
+            address = (t.get("addresses") or [None])[0]
+            contract = t.get("contractAddress") or "0"  # "0" = native coin
+            if not network or not address:
+                continue
+            try:
+                data = await self._call_tool("transactions__get_balances", {
+                    "request": {
+                        "networkId": network,
+                        "walletAddress": address,
+                        "tokens": [{"contractAddress": contract, "decimals": decimals}],
+                    },
+                })
+            except Exception:
+                continue  # network not readable by get_balances; skip it
+            for b in (data.get("balances") or []) if isinstance(data, dict) else []:
+                raw = b.get("rawAmount") if isinstance(b, dict) else None
+                if raw is None:
+                    continue
+                amount = float(raw) / (10 ** decimals) if decimals else float(raw)
+                out.append(Balance(token=symbol, chain=str(network).lower(), amount=amount))
+        return out
+
     async def get_history(self, limit: int = 20) -> list[PastTx]:
+        if self.transport == "oauth":
+            # Tangem's MCP has no general transfer-history tool.
+            return []
         return _normalise_history(await self._call("get_history", limit=limit))
 
     async def sign_and_send(self, intent: TxIntent) -> str:
+        if self.transport == "oauth":
+            return await self._tangem_send(intent)
         data = await self._call(
             "sign_and_send",
             to=intent.to, amount=intent.amount, token=intent.token,
             chain=intent.chain, kind=intent.kind.value, memo=intent.memo or None,
         )
         return _tx_ref(data)
+
+    async def _tangem_send(self, intent: TxIntent) -> str:
+        network = self._network_id(intent.chain)
+        token = next(
+            (t for t in await self._tokens()
+             if t.get("networkId") == network
+             and str(t.get("symbol") or "").upper() == intent.token.upper()),
+            None,
+        )
+        if token is None:
+            raise RuntimeError(f"No {intent.token} on {network} in the approved wallet")
+        from_address = (token.get("addresses") or [None])[0]
+        token_id = token.get("tokenId")
+        if not from_address or not token_id:
+            raise RuntimeError(f"{intent.token} on {network} has no sendable address/tokenId")
+        data = await self._call_tool("transactions__send_transaction", {
+            "request": {
+                "networkId": network,
+                "tokenId": token_id,
+                "fromAddress": from_address,
+                "toAddress": intent.to,
+                "amount": str(intent.amount),
+                "sendNotification": True,
+                "memo": intent.memo or None,
+            },
+        })
+        deeplink = (data or {}).get("deeplink", "") if isinstance(data, dict) else ""
+        self._last_intent_id = (data or {}).get("intentId") if isinstance(data, dict) else None
+        if not deeplink:
+            raise RuntimeError(f"send_transaction returned no deeplink: {data}")
+        return deeplink
+
+    async def transaction_status(self, intent_id: str | None = None) -> dict:
+        return await self._call_tool(
+            "transactions__get_transaction_status",
+            {"intentId": intent_id or self._last_intent_id},
+        )

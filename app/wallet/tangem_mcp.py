@@ -236,6 +236,15 @@ class TangemMcpWallet(WalletProvider):
             "bitcoin": "bitcoin",
         }.get(chain.lower(), chain.lower())
 
+    @staticmethod
+    def _chain_name(network_id: str) -> str:
+        """Map Tangem's networkId back to TapGuard's chain name (reverse of _network_id)."""
+        return {
+            "ethereum": "ethereum-sepolia",
+            "polygon-pos": "polygon-amoy",
+            "bitcoin": "bitcoin",
+        }.get(network_id.lower(), network_id.lower())
+
     async def get_balances(self) -> list[Balance]:
         if self.transport == "oauth":
             return await self._tangem_balances()
@@ -266,7 +275,7 @@ class TangemMcpWallet(WalletProvider):
                 if raw is None:
                     continue
                 amount = float(raw) / (10 ** decimals) if decimals else float(raw)
-                out.append(Balance(token=symbol, chain=str(network).lower(), amount=amount))
+                out.append(Balance(token=symbol, chain=self._chain_name(network), amount=amount))
         return out
 
     async def get_history(self, limit: int = 20) -> list[PastTx]:
